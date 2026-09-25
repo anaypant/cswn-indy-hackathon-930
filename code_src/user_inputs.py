@@ -162,4 +162,6 @@ def convert_input_to_structured(user_input: str) -> dict:
 
     return json.loads(content)
 
-def store_
+
+def store_user_structured_data(json_payload: dict):
+    pass
