@@ -1,0 +1,47 @@
+[
+  {
+    "condition_id": "endometriosis_deep_infiltrating",
+    "condition_name": "Endometriosis",
+    "diagnostic_icd10": "N80.9",
+    "clinical_guideline_authority": "ACOG Practice Bulletin No. 114 / ESHRE Guidelines",
+    "diagnostic_profile": {
+      "cardinal_symptoms": [
+        {
+          "snomed_concept_id": "24734008",
+          "symptom_name": "Severe dysmenorrhea",
+          "symptom_icd10_pattern": "R10.2",
+          "clinical_weight": 3,
+          "is_mandatory_for_suspicion": true
+        },
+        {
+          "snomed_concept_id": "285387002",
+          "symptom_name": "Dyschezia / GI pain during menses",
+          "symptom_icd10_pattern": "R10.32",
+          "clinical_weight": 2,
+          "is_mandatory_for_suspicion": false
+        },
+        {
+          "snomed_concept_id": "237119000",
+          "symptom_name": "Non-menstrual chronic pelvic pain",
+          "symptom_icd10_pattern": "R10.30",
+          "clinical_weight": 2,
+          "is_mandatory_for_suspicion": false
+        }
+      ],
+      "temporal_hallmark": {
+        "cycle_correlation": "Strongly Perimenstrual",
+        "target_phases": ["Luteal", "Menstrual"],
+        "minimum_flare_frequency": ">= 2 cycles"
+      },
+      "hallmark_treatment_response": "Refractory to standard OTC NSAIDs",
+      "expected_functional_impairment": ["Moderate", "Severe"]
+    },
+    "physician_encounter_guidance": {
+      "suggested_orders": [
+        "Transvaginal Ultrasound (TVUS) with Endometriosis Protocol / Bowel & Bladder sliding sign evaluation",
+        "Pelvic MRI with IV contrast"
+      ],
+      "clinical_advocacy_statement": "Patient demonstrates cyclical pelvic pain refractory to standard anti-inflammatory regimens with associated functional incapacitation, warranting specialized pelvic imaging."
+    }
+  }
+]
