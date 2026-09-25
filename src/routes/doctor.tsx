@@ -113,14 +113,14 @@ function Detail({ doctorId, patient, entries }: { doctorId: string; patient: Pat
             <thead>
               <tr className="eyebrow">
                 <th className="px-4 py-2">Date</th><th className="px-4 py-2">Symptoms</th><th className="px-4 py-2">Severity</th>
-                <th className="px-4 py-2">Sleep</th><th className="px-4 py-2">Notes</th>
+                <th className="px-4 py-2">Sleep</th><th className="px-4 py-2">Cycle</th><th className="px-4 py-2">Notes</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {rows.map((e) => (
-                <tr key={e.id} className={e.symptoms.includes("Chest pain/pressure") ? "bg-accent/8" : ""}>
+                <tr key={e.id} className={/chest pain|chest pressure/i.test(e.symptoms_text) ? "bg-accent/8" : ""}>
                   <td className="whitespace-nowrap px-4 py-3 font-medium">{fmtDate(e.date)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{[...e.symptoms, e.other].filter(Boolean).join(", ") || "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{e.symptoms_text || "—"}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-2">
                       <span className="h-1.5 w-14 rounded-full bg-muted"><span className={`block h-1.5 rounded-full ${e.severity >= 5 ? "bg-accent" : "bg-primary-soft"}`} style={{ width: `${e.severity * 10}%` }} /></span>
@@ -128,6 +128,9 @@ function Detail({ doctorId, patient, entries }: { doctorId: string; patient: Pat
                     </span>
                   </td>
                   <td className={`px-4 py-3 ${e.sleep_hours < 5 ? "font-semibold text-accent" : "text-muted-foreground"}`}>{e.sleep_hours}h</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {e.menstrual_phase !== "Not tracking" ? `${e.menstrual_phase}${e.menstrual_day ? ` · day ${e.menstrual_day}` : ""}` : "—"}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{e.notes}</td>
                 </tr>
               ))}

@@ -1,16 +1,8 @@
 // Shared, patient-safe data. Contains NO AI insight content.
 import { useEffect, useState } from "react";
 
-export const SYMPTOMS = [
-  "Chest pain/pressure",
-  "Shortness of breath",
-  "Fatigue",
-  "Nausea",
-  "Jaw/back pain",
-  "Palpitations",
-  "Dizziness",
-  "Cold sweats",
-] as const;
+export const MENSTRUAL_PHASES = ["Not tracking", "Menstrual", "Follicular", "Ovulation", "Luteal"] as const;
+export type MenstrualPhase = (typeof MENSTRUAL_PHASES)[number];
 
 export type Patient = {
   id: string;
@@ -25,11 +17,12 @@ export type LogEntry = {
   id: string;
   patient_id: string;
   date: string; // YYYY-MM-DD
-  symptoms: string[];
-  other: string;
+  symptoms_text: string;
   severity: number;
   sleep_hours: number;
   notes: string;
+  menstrual_day: number | null;
+  menstrual_phase: MenstrualPhase;
 };
 
 export const DOCTORS: Doctor[] = [
@@ -48,39 +41,40 @@ function daysAgo(n: number) {
   return d.toISOString().slice(0, 10);
 }
 
-type Seed = [number, string[], number, number, string];
+type Seed = [number, string, number, number, string, (number | null)?, MenstrualPhase?];
 const denise: Seed[] = [
-  [13, ["Fatigue"], 2, 6, "A bit tired after work."],
-  [12, ["Fatigue"], 3, 5.5, "Slept poorly, restless."],
-  [11, ["Fatigue"], 3, 5, "Needed a nap in the afternoon."],
-  [10, ["Fatigue", "Nausea"], 3, 6, "Mild queasiness at lunch."],
-  [9, ["Fatigue", "Shortness of breath"], 4, 5, "Winded on the stairs."],
-  [8, ["Fatigue", "Shortness of breath"], 4, 5.5, "Winded carrying groceries."],
-  [7, ["Fatigue", "Jaw/back pain"], 5, 4.5, "Ache between shoulder blades."],
-  [6, ["Fatigue", "Shortness of breath", "Chest pain/pressure"], 6, 4.5, "Tight feeling in chest for ~10 min in the morning."],
-  [5, ["Fatigue", "Shortness of breath"], 5, 5, "Very tired all day."],
-  [4, ["Fatigue", "Shortness of breath", "Cold sweats"], 6, 5, "Woke up sweaty."],
-  [3, ["Fatigue", "Shortness of breath", "Chest pain/pressure", "Nausea"], 7, 4, "Pressure in chest walking to car, went away after resting."],
-  [2, ["Fatigue", "Shortness of breath", "Dizziness"], 6, 5, "Lightheaded standing up."],
+  [13, "Fatigue", 2, 6, "A bit tired after work."],
+  [12, "Fatigue", 3, 5.5, "Slept poorly, restless."],
+  [11, "Fatigue", 3, 5, "Needed a nap in the afternoon."],
+  [10, "Fatigue, mild nausea at lunch", 3, 6, "Mild queasiness at lunch."],
+  [9, "Fatigue, winded on the stairs", 4, 5, "Winded on the stairs."],
+  [8, "Fatigue, winded carrying groceries", 4, 5.5, "Winded carrying groceries."],
+  [7, "Fatigue, ache between shoulder blades", 5, 4.5, "Ache between shoulder blades."],
+  [6, "Fatigue, shortness of breath, tight feeling in chest for ~10 min", 6, 4.5, "Tight feeling in chest for ~10 min in the morning."],
+  [5, "Fatigue, shortness of breath, very tired all day", 5, 5, "Very tired all day."],
+  [4, "Fatigue, shortness of breath, woke up sweaty", 6, 5, "Woke up sweaty."],
+  [3, "Fatigue, shortness of breath, pressure in chest walking to car, nausea", 7, 4, "Pressure in chest walking to car, went away after resting."],
+  [2, "Fatigue, shortness of breath, lightheaded standing up", 6, 5, "Lightheaded standing up."],
 ];
 const maria: Seed[] = [
-  [9, ["Fatigue"], 2, 7, "Long day."],
-  [6, ["Dizziness"], 2, 7.5, "Brief, after skipping breakfast."],
-  [3, ["Fatigue"], 1, 8, "Feeling mostly fine."],
-  [1, ["Nausea"], 2, 7, "Mild, after spicy dinner."],
+  [9, "Fatigue", 2, 7, "Long day.", 3, "Menstrual"],
+  [6, "Brief dizziness after skipping breakfast", 2, 7.5, "Brief, after skipping breakfast."],
+  [3, "Fatigue", 1, 8, "Feeling mostly fine.", 18, "Luteal"],
+  [1, "Mild nausea after spicy dinner", 2, 7, "Mild, after spicy dinner."],
 ];
 const aisha: Seed[] = [
-  [5, ["Palpitations"], 2, 7, "After two coffees."],
-  [2, ["Fatigue"], 2, 6.5, "Busy week."],
+  [5, "Palpitations after two coffees", 2, 7, "After two coffees."],
+  [2, "Fatigue", 2, 6.5, "Busy week.", 10, "Follicular"],
 ];
 
 function build(pid: string, s: Seed[]): LogEntry[] {
-  return s.map(([d, sym, sev, sleep, notes], i) => ({
-    id: `${pid}-e${i}`, patient_id: pid, date: daysAgo(d), symptoms: sym, other: "", severity: sev, sleep_hours: sleep, notes,
+  return s.map(([d, symptoms_text, sev, sleep, notes, menstrual_day = null, menstrual_phase = "Not tracking"], i) => ({
+    id: `${pid}-e${i}`, patient_id: pid, date: daysAgo(d), symptoms_text, severity: sev, sleep_hours: sleep, notes,
+    menstrual_day, menstrual_phase,
   }));
 }
 
-const KEY = "symptom-advocate-v1";
+const KEY = "symptom-advocate-v2";
 type State = { patients: Patient[]; entries: LogEntry[] };
 const seed = (): State => ({
   patients: SEED_PATIENTS,

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { SYMPTOMS, addEntry, byDateDesc, fmtDate, updatePatient, useStore, type Patient } from "@/lib/data";
+import { MENSTRUAL_PHASES, addEntry, byDateDesc, fmtDate, updatePatient, useStore, type MenstrualPhase, type Patient } from "@/lib/data";
 
 // Patient portal: shows only the patient's own raw entries. No AI content is imported here.
 export const Route = createFileRoute("/patient")({
@@ -91,18 +91,27 @@ function Onboard({ patient }: { patient: Patient }) {
 function Diary({ patient }: { patient: Patient }) {
   const { entries } = useStore();
   const mine = entries.filter((e) => e.patient_id === patient.id).sort(byDateDesc);
-  const [symptoms, setSymptoms] = useState<string[]>([]);
-  const [other, setOther] = useState("");
+  const [symptomsText, setSymptomsText] = useState("");
   const [severity, setSeverity] = useState(3);
   const [sleep, setSleep] = useState("7");
   const [notes, setNotes] = useState("");
+  const [menstrualDay, setMenstrualDay] = useState("");
+  const [menstrualPhase, setMenstrualPhase] = useState<MenstrualPhase>("Not tracking");
   const [saved, setSaved] = useState(false);
-  const toggle = (s: string) => setSymptoms((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
   const today = new Date().toISOString().slice(0, 10);
 
   const save = () => {
-    addEntry({ patient_id: patient.id, date: today, symptoms, other, severity, sleep_hours: Number(sleep) || 0, notes });
-    setSymptoms([]); setOther(""); setSeverity(3); setNotes("");
+    addEntry({
+      patient_id: patient.id,
+      date: today,
+      symptoms_text: symptomsText,
+      severity,
+      sleep_hours: Number(sleep) || 0,
+      notes,
+      menstrual_day: menstrualDay ? Number(menstrualDay) : null,
+      menstrual_phase: menstrualPhase,
+    });
+    setSymptomsText(""); setSeverity(3); setNotes(""); setMenstrualDay(""); setMenstrualPhase("Not tracking");
     setSaved(true); setTimeout(() => setSaved(false), 2500);
   };
 
@@ -114,19 +123,9 @@ function Diary({ patient }: { patient: Patient }) {
         <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">A quiet two minutes to check in. Just your notes, kept close.</p>
 
         <p className="eyebrow mt-6">How does your body feel?</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {SYMPTOMS.map((s) => {
-            const on = symptoms.includes(s);
-            return (
-              <button key={s} onClick={() => toggle(s)} aria-pressed={on}
-                className={`rounded-full border px-3.5 py-2.5 text-[15px] font-medium transition active:scale-95 ${on ? "border-accent/40 bg-accent/15 text-accent" : "bg-paper/70 text-foreground/70"}`}>
-                {s}
-              </button>
-            );
-          })}
-        </div>
-        <input value={other} onChange={(e) => setOther(e.target.value)} placeholder="Something else? Describe it here"
-          className="mt-3 w-full rounded-2xl border bg-paper/70 px-4 py-3 text-[15px]" />
+        <textarea rows={3} value={symptomsText} onChange={(e) => setSymptomsText(e.target.value)}
+          placeholder="Describe how you're feeling today"
+          className="mt-3 w-full resize-none rounded-2xl border bg-paper/70 px-4 py-3 text-[15px] leading-relaxed" />
 
         <div className="mt-6 flex items-baseline justify-between">
           <p className="eyebrow">Severity</p>
@@ -141,6 +140,23 @@ function Diary({ patient }: { patient: Patient }) {
             <input type="number" min={0} max={24} step={0.5} value={sleep} onChange={(e) => setSleep(e.target.value)}
               className="mt-1 w-full bg-transparent font-display text-2xl font-medium focus:outline-none" />
           </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="rounded-2xl border bg-paper/60 p-4">
+              <span className="eyebrow">Menstrual day</span>
+              <input type="number" min={1} max={40} value={menstrualDay} onChange={(e) => setMenstrualDay(e.target.value)}
+                placeholder="e.g. 14"
+                className="mt-1 w-full bg-transparent font-display text-2xl font-medium focus:outline-none" />
+            </label>
+            <label className="rounded-2xl border bg-paper/60 p-4">
+              <span className="eyebrow">Menstrual phase</span>
+              <select value={menstrualPhase} onChange={(e) => setMenstrualPhase(e.target.value as MenstrualPhase)}
+                className="mt-1 w-full bg-transparent text-[15px] font-medium focus:outline-none">
+                {MENSTRUAL_PHASES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+          </div>
+
           <label className="rounded-2xl border bg-paper/60 p-4">
             <span className="eyebrow">Notes</span>
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything worth remembering?"
@@ -162,7 +178,8 @@ function Diary({ patient }: { patient: Patient }) {
                 <span className="font-display text-base font-semibold text-accent">{e.severity}/10</span>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {[...e.symptoms, e.other].filter(Boolean).join(", ") || "No symptoms"} · {e.sleep_hours}h sleep
+                {e.symptoms_text || "No symptoms noted"} · {e.sleep_hours}h sleep
+                {e.menstrual_phase !== "Not tracking" ? ` · ${e.menstrual_phase}${e.menstrual_day ? ` (day ${e.menstrual_day})` : ""}` : ""}
               </p>
             </li>
           ))}
