@@ -40,8 +40,8 @@ export function scoreGeneric(entries: ScoreEntry[]): ModelScore {
     level,
     rule:
       chest.length === 0
-        ? "No chest pain is logged, so this model calls the diary non-cardiac. It does not treat exertional fatigue, breathlessness, nausea, or jaw and back pain as ischemia."
-        : "Concern comes only from entries tagged chest pain. Other symptoms are ignored, including whether the chest symptom happened at rest, with stress, or after a meal.",
+        ? "No chest pain is described in the written entry, so this model calls the diary non-cardiac. It does not treat exertional fatigue, breathlessness, nausea, or jaw and back pain as ischemia."
+        : "Concern comes only from chest pain described in the written entry. Other symptoms are ignored, including whether the chest symptom happened at rest, with stress, or after a meal.",
     counted: chest.slice(0, 4).map((entry) => ({
       date: entry.date,
       label: `Chest pain/pressure · severity ${entry.severity} · ${entry.context || "context not recorded"}`,

@@ -6,7 +6,8 @@ import { AppHeader } from "@/components/AppHeader";
 import { DOCTOR, byDateDesc, fmtDate, resetDemo, useStore, type LogEntry, type Patient } from "@/lib/data";
 import { CITATIONS } from "@/lib/evidence";
 import { getPatientInsight } from "@/lib/insights.functions";
-import { levelGap, scoreFemale, scoreGeneric, type ConcernLevel, type ModelScore } from "@/lib/models";
+import { levelGap, type ConcernLevel, type ModelScore } from "@/lib/models";
+import type { EntryTag } from "@/lib/insights.server";
 
 export const Route = createFileRoute("/doctor")({
   head: () => ({
@@ -43,16 +44,13 @@ function Dashboard({ patientIds }: { patientIds: string[] }) {
           <p className="eyebrow px-2">Patients · {mine.length}</p>
           <ul className="mt-3 space-y-1">
             {mine.map((p) => {
-              const diary = entries.filter((e) => e.patient_id === p.id);
-              const genericLevel = scoreGeneric(diary).level;
-              const femaleLevel = scoreFemale(diary).level;
+              const count = entries.filter((e) => e.patient_id === p.id).length;
               return (
                 <li key={p.id}>
                   <button onClick={() => setActive(p.id)}
                     className={`w-full rounded-2xl px-3 py-3 text-left transition ${p.id === active ? "bg-primary/12 outline outline-primary/25" : "hover:bg-muted"}`}>
                     <p className="font-semibold">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.age ? `${p.age} years` : "Age not set"} · {diary.length} entries</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Generic {genericLevel} · Female {femaleLevel}</p>
+                    <p className="text-xs text-muted-foreground">{p.age ? `${p.age} years` : "Age not set"} · {count} entries</p>
                   </button>
                 </li>
               );
@@ -99,16 +97,15 @@ function Detail({ patient, entries }: { patient: Patient; entries: LogEntry[] })
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="eyebrow">
-                <th className="px-4 py-2">Date</th><th className="px-4 py-2">Doing</th><th className="px-4 py-2">Symptoms</th><th className="px-4 py-2">Severity</th>
-                <th className="px-4 py-2">Sleep</th><th className="px-4 py-2">Cycle</th><th className="px-4 py-2">Notes</th>
+                <th className="px-4 py-2">Date</th><th className="px-4 py-2">Entry</th><th className="px-4 py-2">Severity</th>
+                <th className="px-4 py-2">Sleep</th><th className="px-4 py-2">Menstrual day</th><th className="px-4 py-2">Menstrual phase</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {rows.map((e) => (
-                <tr key={e.id} className={e.symptoms.includes("Chest pain/pressure") ? "bg-accent/8" : ""}>
+                <tr key={e.id}>
                   <td className="whitespace-nowrap px-4 py-3 font-medium">{fmtDate(e.date)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{e.context || "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{[...e.symptoms, e.other].filter(Boolean).join(", ") || "—"}</td>
+                  <td className="max-w-md px-4 py-3 text-muted-foreground">{e.notes || "—"}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-2">
                       <span className="h-1.5 w-14 rounded-full bg-muted"><span className={`block h-1.5 rounded-full ${e.severity >= 5 ? "bg-accent" : "bg-primary-soft"}`} style={{ width: `${e.severity * 10}%` }} /></span>
@@ -116,10 +113,8 @@ function Detail({ patient, entries }: { patient: Patient; entries: LogEntry[] })
                     </span>
                   </td>
                   <td className={`px-4 py-3 ${e.sleep_hours < 5 ? "font-semibold text-accent" : "text-muted-foreground"}`}>{e.sleep_hours}h</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {e.menstrual_phase && e.menstrual_phase !== "Not tracking" ? `${e.menstrual_phase}${e.menstrual_day ? ` · day ${e.menstrual_day}` : ""}` : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{e.notes}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{e.menstrual_day ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{e.menstrual_phase || "Not tracking"}</td>
                 </tr>
               ))}
             </tbody>
@@ -138,10 +133,7 @@ function tone(level: ConcernLevel) {
 
 function InsightPanel({ patient, entries }: { patient: Patient; entries: LogEntry[] }) {
   const fetchInsight = useServerFn(getPatientInsight);
-  const genericScore = scoreGeneric(entries);
-  const femaleScore = scoreFemale(entries);
-  const gap = levelGap(genericScore.level, femaleScore.level);
-  const signature = entries.map((entry) => `${entry.id}:${entry.date}:${entry.severity}:${entry.symptoms.join("+")}`).join("|");
+  const signature = entries.map((entry) => `${entry.id}:${entry.date}:${entry.severity}:${entry.notes}:${entry.menstrual_phase}:${entry.menstrual_day ?? ""}`).join("|");
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["insight", patient.id, signature],
     retry: false,
@@ -157,31 +149,54 @@ function InsightPanel({ patient, entries }: { patient: Patient; entries: LogEntr
           },
           entries: entries.map((entry) => ({
             date: entry.date,
-            symptoms: entry.symptoms,
-            other: entry.other,
             severity: entry.severity,
             sleep_hours: entry.sleep_hours,
-            context: entry.context ?? "",
             notes: entry.notes,
+            menstrual_day: entry.menstrual_day,
+            menstrual_phase: entry.menstrual_phase,
           })),
         },
       }),
   });
-  const genericNote = data?.ok ? data.generic.narrative : null;
-  const femaleNote = data?.ok ? data.female.narrative : null;
+  const genericRead = data?.ok ? data.generic : null;
+  const femaleRead = data?.ok ? data.female : null;
+  const gap = genericRead && femaleRead ? levelGap(genericRead.score.level, femaleRead.score.level) : null;
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${gap === 0 ? "bg-primary/12 text-primary" : "bg-accent/15 text-accent"}`}>
-          {gap === 0 ? "Models agree" : gap > 0 ? "Generic model is lower" : "Generic model is higher"}
-        </span>
+        <div>
+          <p className="eyebrow">Two models, same diary</p>
+          <h2 className="font-display text-2xl font-semibold">How the two rules read this diary</h2>
+        </div>
+        {gap !== null && (
+          <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${gap === 0 ? "bg-primary/12 text-primary" : "bg-accent/15 text-accent"}`}>
+            {gap === 0 ? "Models agree" : gap > 0 ? "Generic model is lower" : "Generic model is higher"}
+          </span>
+        )}
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <ModelCard score={genericScore} narrative={genericNote} loading={isLoading} />
-        <ModelCard score={femaleScore} narrative={femaleNote} loading={isLoading} informed />
+        <ModelCard
+          title="Generic population model"
+          score={genericRead?.score ?? null}
+          tags={genericRead?.tags ?? []}
+          tagLabel="Chest pain found in the entry"
+          narrative={genericRead?.narrative ?? null}
+          loading={isLoading}
+          loadingText="Reading the written entry…"
+        />
+        <ModelCard
+          title="Female-informed model"
+          score={femaleRead?.score ?? null}
+          tags={femaleRead?.tags ?? []}
+          tagLabel="Labels read from the entry"
+          narrative={femaleRead?.narrative ?? null}
+          loading={isLoading}
+          loadingText="Labeling symptoms and activity, then reading…"
+          informed
+        />
       </div>
-      {isError && <p className="text-destructive">The explanation request failed. The concern levels above still come from each model’s rule.</p>}
+      {isError && <p className="text-destructive">The analysis request failed.</p>}
       {data && !data.ok && (
         <div>
           <p className="text-destructive">{data.message}</p>
@@ -210,36 +225,49 @@ function InsightPanel({ patient, entries }: { patient: Patient; entries: LogEntr
 }
 
 function ModelCard({
+  title,
   score,
+  tags,
+  tagLabel,
   narrative,
   loading,
+  loadingText,
   informed = false,
 }: {
-  score: ModelScore;
+  title: string;
+  score: ModelScore | null;
+  tags: EntryTag[];
+  tagLabel: string;
   narrative: { impression: string; pattern: string; clinicianNextStep: string } | null;
   loading: boolean;
+  loadingText: string;
   informed?: boolean;
 }) {
   return (
     <article className={informed ? "card-insight p-5" : "card-paper p-5"}>
       <div className="flex items-start justify-between gap-3">
-        <h3 className="font-display text-xl font-semibold">{score.name}</h3>
-        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${tone(score.level)}`}>
-          {score.level}
-        </span>
+        <h3 className="font-display text-xl font-semibold">{title}</h3>
+        {score && (
+          <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${tone(score.level)}`}>
+            {score.level}
+          </span>
+        )}
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{score.rule}</p>
-      {score.counted.length > 0 && (
-        <ul className="mt-3 space-y-1 text-[13px]">
-          {score.counted.map((item) => (
-            <li key={`${item.date}-${item.label}`}>
-              <span className="font-semibold">{fmtDate(item.date)}</span>
-              <span className="text-muted-foreground"> — {item.label}</span>
-            </li>
-          ))}
-        </ul>
+      {score && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{score.rule}</p>}
+      {tags.length > 0 && (
+        <div className="mt-3">
+          <p className="eyebrow">{tagLabel}</p>
+          <ul className="mt-2 space-y-1 text-[13px]">
+            {tags.map((tag) => (
+              <li key={`${tag.date}-${tag.context}-${tag.symptoms.join("+")}`}>
+                <span className="font-semibold">{fmtDate(tag.date)}</span>
+                <span className="text-muted-foreground"> — {[...tag.symptoms, tag.context].filter(Boolean).join(" · ")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-      {loading && !narrative && <p className="mt-4 text-sm text-muted-foreground">Writing the explanation…</p>}
+      {loading && !narrative && <p className="mt-4 text-sm text-muted-foreground">{loadingText}</p>}
       {narrative && (
         <div className="mt-4 border-t border-primary/15 pt-3 text-sm leading-relaxed">
           <p className="font-medium">{narrative.impression}</p>
